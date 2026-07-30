@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypesets="g"?>
+<package format="3">
+  <name>helix_comm</name>
+  <version>0.1.0</version>
+  <description>ROS 2 package to communicate with Helix robot via rosbridge</description>
+  <maintainer email="user@robot.local">softbots-cp</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
