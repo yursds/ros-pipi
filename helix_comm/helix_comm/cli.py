@@ -11,13 +11,15 @@ from helix_comm.arm import Arm
 from helix_comm.gripper import Gripper
 from helix_comm.calibrate import Calibrate
 from helix_comm.button import Button, BUTTON_COLORS
+from helix_comm.config_loader import load_config
 
 
 class HelixControl(Node):
     def __init__(self):
         super().__init__('helix_control')
-        self.declare_parameter('host', '192.168.238.104')
-        self.declare_parameter('port', 9090)
+        cfg = load_config()
+        self.declare_parameter('host', cfg['host'])
+        self.declare_parameter('port', cfg['port'])
 
         host = self.get_parameter('host').value
         port = self.get_parameter('port').value
@@ -65,14 +67,15 @@ def main(args=None):
     rclpy.init(args=args)
 
     import argparse
+    cfg = load_config()
     parser = argparse.ArgumentParser(description='Control Helix robot')
     parser.add_argument('action', nargs='?', default='info',
                         choices=['info', 'demo', 'open', 'close',
                                  'pose', 'config', 'tendon', 'calibrate', 'button'],
                         help='Action to perform')
     parser.add_argument('args', nargs='*', help='Additional arguments')
-    parser.add_argument('--host', default='192.168.238.104')
-    parser.add_argument('--port', type=int, default=9090)
+    parser.add_argument('--host', default=cfg['host'])
+    parser.add_argument('--port', type=int, default=cfg['port'])
 
     argv = rclpy.utilities.remove_ros_args(args or sys.argv)
     parsed = parser.parse_args(argv[1:])

@@ -11,7 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools', 'roslibpy'],
+    install_requires=['setuptools', 'roslibpy', 'pyyaml'],
     zip_safe=True,
     maintainer='softbots-cp',
     maintainer_email='softbots-cp@softbots-cp',

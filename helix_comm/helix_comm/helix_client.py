@@ -6,14 +6,17 @@ import rclpy
 from rclpy.node import Node
 import roslibpy
 
+from helix_comm.config_loader import load_config
+
 
 class HelixClient(Node):
     """ROS 2 node that communicates with a Helix robot via rosbridge."""
 
     def __init__(self):
         super().__init__('helix_client')
-        self.declare_parameter('host', '192.168.238.104')
-        self.declare_parameter('port', 9090)
+        cfg = load_config()
+        self.declare_parameter('host', cfg['host'])
+        self.declare_parameter('port', cfg['port'])
 
         host = self.get_parameter('host').value
         port = self.get_parameter('port').value

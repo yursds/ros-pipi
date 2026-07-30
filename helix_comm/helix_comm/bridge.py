@@ -7,6 +7,8 @@ import rclpy
 from rclpy.node import Node
 import roslibpy
 
+from helix_comm.config_loader import load_config
+
 # ── Message builders ──────────────────────────────────────────────────
 
 _MSG_BUILDERS = {}
@@ -66,8 +68,9 @@ class HelixBridge(Node):
 
     def __init__(self):
         super().__init__("helix_bridge")
-        self.declare_parameter("host", "192.168.238.104")
-        self.declare_parameter("port", 9090)
+        cfg = load_config()
+        self.declare_parameter("host", cfg["host"])
+        self.declare_parameter("port", cfg["port"])
         self.declare_parameter("topics", DEFAULT_TOPICS)
 
         host = self.get_parameter("host").value
