@@ -144,7 +144,7 @@ def main(args=None):
 
     elif parsed.action == 'circle':
         import math
-        cx = float(parsed.args[0]) if len(parsed.args) > 0 else 0.30
+        cx = float(parsed.args[0]) if len(parsed.args) > 0 else 0.0
         cy = float(parsed.args[1]) if len(parsed.args) > 1 else 0.0
         r = float(parsed.args[2]) if len(parsed.args) > 2 else 0.10
         z = float(parsed.args[3]) if len(parsed.args) > 3 else 0.50
