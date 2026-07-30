@@ -148,8 +148,8 @@ def main(args=None):
         cy = float(parsed.args[1]) if len(parsed.args) > 1 else 0.0
         r = float(parsed.args[2]) if len(parsed.args) > 2 else 0.10
         z = float(parsed.args[3]) if len(parsed.args) > 3 else 0.50
-        period = float(parsed.args[4]) if len(parsed.args) > 4 else 120.0  # seconds per lap
-        steps = int(parsed.args[5]) if len(parsed.args) > 5 else 240       # points per lap
+        period = float(parsed.args[4]) if len(parsed.args) > 4 else 30.0   # seconds per lap
+        steps = int(parsed.args[5]) if len(parsed.args) > 5 else 120       # points per lap
         node.get_logger().info(
             f'Circle: center=({cx:.3f}, {cy:.3f})  r={r:.3f}  z={z:.3f}  '
             f'period={period:.0f}s  steps={steps}'
