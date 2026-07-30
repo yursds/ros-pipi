@@ -71,7 +71,8 @@ def main(args=None):
     parser = argparse.ArgumentParser(description='Control Helix robot')
     parser.add_argument('action', nargs='?', default='info',
                         choices=['info', 'demo', 'open', 'close',
-                                 'pose', 'config', 'tendon', 'calibrate', 'button'],
+                                 'pose', 'config', 'tendon', 'calibrate', 'button',
+                                 'circle'],
                         help='Action to perform')
     parser.add_argument('args', nargs='*', help='Additional arguments')
     parser.add_argument('--host', default=cfg['host'])
@@ -140,6 +141,31 @@ def main(args=None):
             node.calibrate.compression_limits()
         else:
             node.get_logger().error(f'Unknown calibrate subcommand: {sub}')
+
+    elif parsed.action == 'circle':
+        import math
+        cx = float(parsed.args[0]) if len(parsed.args) > 0 else 0.30
+        cy = float(parsed.args[1]) if len(parsed.args) > 1 else 0.0
+        r = float(parsed.args[2]) if len(parsed.args) > 2 else 0.10
+        z = float(parsed.args[3]) if len(parsed.args) > 3 else 0.50
+        period = float(parsed.args[4]) if len(parsed.args) > 4 else 120.0  # seconds per lap
+        steps = int(parsed.args[5]) if len(parsed.args) > 5 else 240       # points per lap
+        node.get_logger().info(
+            f'Circle: center=({cx:.3f}, {cy:.3f})  r={r:.3f}  z={z:.3f}  '
+            f'period={period:.0f}s  steps={steps}'
+        )
+        delay = period / steps
+        node.get_logger().info('Starting circle (Ctrl+C to stop)...')
+        try:
+            while True:
+                for i in range(steps):
+                    theta = 2.0 * math.pi * i / steps
+                    x = cx + r * math.cos(theta)
+                    y = cy + r * math.sin(theta)
+                    node.arm.move_to_pose(x, y, z)
+                    time.sleep(delay)
+        except KeyboardInterrupt:
+            node.get_logger().info('Circle stopped')
 
     elif parsed.action == 'button':
         if not parsed.args:
