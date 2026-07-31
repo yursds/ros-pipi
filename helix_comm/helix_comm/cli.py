@@ -140,11 +140,13 @@ ACTIONS AND ARGUMENTS
 
   tendon_demo [AMPLITUDE HOLD]
                            Move one tendon at a time (tendon0 .. tendon8).
-                           For each tendon: shorten it by AMPLITUDE
-                           (default 0.015 m), hold HOLD seconds (default 3),
-                           then return to the straight length.
-                           Useful to check each motor individually.
-                           Interrupt with Ctrl+C at any time.
+                           Always starts from the default position: all
+                           tendons are streamed back to their nominal
+                           length first. Then, for each tendon: shorten it
+                           by AMPLITUDE (default 0.015 m), hold HOLD
+                           seconds (default 3), then return to the
+                           straight length. Useful to check each motor
+                           individually. Interrupt with Ctrl+C at any time.
 
 EXAMPLES
 --------
@@ -342,6 +344,18 @@ def main(args=None):
         node.get_logger().info(
             f'Tendon demo: 9 tendons one at a time, amplitude={amplitude:.3f} m, '
             f'hold={hold:.0f} s each')
+        # Always start from the default (straight) position: stream all
+        # tendons back to their nominal length before touching any motor.
+        node.get_logger().info(
+            '-- Moving to default position (all tendons nominal)...')
+        _publish_loop(
+            node,
+            lambda: node.arm.set_tendon_lengths(tendon_names, nominal),
+            'default position (nominal tendon lengths)', parsed.rate,
+            duration=hold)
+        if not rclpy.ok():
+            node.get_logger().info('Tendon demo interrupted')
+            return
         for name, base in zip(tendon_names, nominal):
             node.get_logger().info(
                 f'-- {name}: {base:.3f} -> {base - amplitude:.3f}')
