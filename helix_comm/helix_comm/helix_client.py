@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
 """ROS 2 node that connects to the Helix robot via rosbridge WebSocket."""
 
 import sys
-import rclpy
-from rclpy.node import Node
-import roslibpy
 
-from helix_comm.config_loader import load_config, ConfigError
+import rclpy
+import roslibpy
+from rclpy.node import Node
+
+from helix_comm.config_loader import ConfigError, load_config
 
 
 class HelixClient(Node):

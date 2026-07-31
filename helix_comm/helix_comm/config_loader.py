@@ -1,8 +1,9 @@
 """Utility to load Helix robot connection config."""
 
 import os
-import yaml
 from pathlib import Path
+
+import yaml
 
 CONFIG_FILENAME = 'helix_config.yaml'
 

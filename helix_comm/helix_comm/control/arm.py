@@ -29,7 +29,7 @@ class Arm:
             'values': joint_values,
         }
         self.config_pub.publish(msg)
-        self.logger.debug(f'  configuration set')
+        self.logger.debug('  configuration set')
 
     def set_tendon_lengths(self, names, lengths):
         msg = {
@@ -37,7 +37,7 @@ class Arm:
             'values': lengths,
         }
         self.tendon_pub.publish(msg)
-        pairs = ', '.join(f'{n}: {l:.3f}' for n, l in zip(names, lengths))
+        pairs = ', '.join(f'{n}: {length:.3f}' for n, length in zip(names, lengths))
         self.logger.debug(f'  tendon lengths -> {pairs}')
 
     def cleanup(self):

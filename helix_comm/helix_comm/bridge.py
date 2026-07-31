@@ -1,13 +1,12 @@
-#!/usr/bin/env python3
 """Bridge robot topics from rosbridge to native ROS 2 for tools like PlotJuggler."""
 
 import sys
-import time
-import rclpy
-from rclpy.node import Node
-import roslibpy
 
-from helix_comm.config_loader import load_config, ConfigError
+import rclpy
+import roslibpy
+from rclpy.node import Node
+
+from helix_comm.config_loader import ConfigError, load_config
 
 # -- Message builders -------------------------------------------------
 
@@ -15,8 +14,8 @@ _MSG_BUILDERS = {}
 
 
 def _joint_state_msg(data):
-    from sensor_msgs.msg import JointState
     from builtin_interfaces.msg import Time
+    from sensor_msgs.msg import JointState
     from std_msgs.msg import Header
     msg = JointState()
     msg.header = Header()
@@ -38,6 +37,7 @@ _MSG_BUILDERS["sensor_msgs/msg/JointState"] = _joint_state_msg
 def _generic_msg(data):
     """Fallback: publish the dict as a JSON string on a std_msgs/String."""
     import json
+
     from std_msgs.msg import String
     msg = String()
     msg.data = json.dumps(data)
@@ -114,7 +114,7 @@ class HelixBridge(Node):
             try:
                 msg = build_message(_type, data)
                 self._native_pubs[_topic].publish(msg)
-            except Exception as e:
+            except (KeyError, TypeError) as e:
                 self.get_logger().warn(f"Failed to bridge {_topic}: {e}")
 
         sub = roslibpy.Topic(self._client, topic_name, ros_type)
@@ -135,13 +135,13 @@ class HelixBridge(Node):
         for sub in self._ros_subs:
             try:
                 sub.unsubscribe()
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 - best-effort unsubscribe at shutdown
+                self.get_logger().debug(f"Unsubscribe failed: {e}")
         self._client.terminate()
         super().destroy_node()
 
 
-HELP_EPILOG = """
+HELP_EPILOG = f"""
 TOPIC SPEC FORMAT
 -----------------
 Each topic is specified as ROS_TYPE:TOPIC_NAME, for example:
@@ -158,8 +158,8 @@ EXAMPLES
       Bridge custom topics (repeat the option or pass several).
 
 DEFAULT TOPICS
---------------
-  %s
+-------------
+  {", ".join(DEFAULT_TOPICS)}
 
 NOTES
 -----
@@ -169,7 +169,7 @@ NOTES
   std_msgs/String topic.
 - The same settings can be passed as ROS 2 parameters instead:
   helix_bridge --ros-args -p topics:='["sensor_msgs/msg/JointState:/joint_states"]'
-""" % ", ".join(DEFAULT_TOPICS)
+"""
 
 
 def main(args=None):
@@ -187,8 +187,8 @@ def main(args=None):
     parser.add_argument("--port", type=int, default=None,
                         help="Robot rosbridge port (default: from helix_config.yaml)")
     parser.add_argument("--topics", nargs="*", default=None,
-                        help="Topic specs ROS_TYPE:TOPIC_NAME to bridge "
-                             "(default: %s)" % ", ".join(DEFAULT_TOPICS))
+                        help=f"Topic specs ROS_TYPE:TOPIC_NAME to bridge "
+                             f"(default: {', '.join(DEFAULT_TOPICS)})")
 
     argv = rclpy.utilities.remove_ros_args(args or sys.argv)
     parsed = parser.parse_args(argv[1:])

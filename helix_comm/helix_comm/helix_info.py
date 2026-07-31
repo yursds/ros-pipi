@@ -1,12 +1,12 @@
-#!/usr/bin/env python3
 """Simple script to check Helix robot status via rosbridge."""
 
 import sys
-import rclpy
-from rclpy.node import Node
-import roslibpy
 
-from helix_comm.config_loader import load_config, ConfigError
+import rclpy
+import roslibpy
+from rclpy.node import Node
+
+from helix_comm.config_loader import ConfigError, load_config
 
 
 class HelixInfo(Node):

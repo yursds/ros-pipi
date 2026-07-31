@@ -33,8 +33,8 @@ class Calibrate:
                 v = self._get_param(
                     '/helix/dynamixel_driver_node', f'motor_{dxl_id}/current_limit')
                 self.logger.info(f'  motor_{dxl_id}/current_limit = {v["double_value"]} mA')
-            except Exception:
-                pass
+            except (KeyError, IndexError, TypeError) as e:
+                self.logger.debug(f'  motor_{dxl_id} not available: {e}')
         self.logger.info('========================================\n')
 
     def set_current(self, milliamps):
