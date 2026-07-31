@@ -7,10 +7,10 @@ import rclpy
 from rclpy.node import Node
 import roslibpy
 
-from helix_comm.arm import Arm
-from helix_comm.gripper import Gripper
-from helix_comm.calibrate import Calibrate
-from helix_comm.button import Button, BUTTON_COLORS
+from helix_comm.control.arm import Arm
+from helix_comm.control.gripper import Gripper
+from helix_comm.control.calibrate import Calibrate
+from helix_comm.control.button import Button, BUTTON_COLORS
 from helix_comm.config_loader import load_config
 
 
