@@ -7,9 +7,9 @@ import rclpy
 from rclpy.node import Node
 import roslibpy
 
-from helix_comm.config_loader import load_config
+from helix_comm.config_loader import load_config, ConfigError
 
-# ── Message builders ──────────────────────────────────────────────────
+# -- Message builders -------------------------------------------------
 
 _MSG_BUILDERS = {}
 
@@ -52,7 +52,7 @@ def build_message(ros_type, data):
     return builder(data)
 
 
-# ── Bridge configuration ─────────────────────────────────────────────
+# -- Bridge configuration ---------------------------------------------
 
 DEFAULT_TOPICS = [
     "sensor_msgs/msg/JointState:/joint_states",
@@ -60,22 +60,22 @@ DEFAULT_TOPICS = [
 
 
 class HelixBridge(Node):
-    """Bridge topics from rosbridge → native ROS 2.
+    """Bridge topics from rosbridge to native ROS 2.
 
     Subscribes to robot topics via roslibpy and republishes them as
     native ROS 2 topics so tools like PlotJuggler can see them.
     """
 
-    def __init__(self):
+    def __init__(self, host=None, port=None, topics=None):
         super().__init__("helix_bridge")
         cfg = load_config()
         self.declare_parameter("host", cfg["host"])
         self.declare_parameter("port", cfg["port"])
         self.declare_parameter("topics", DEFAULT_TOPICS)
 
-        host = self.get_parameter("host").value
-        port = self.get_parameter("port").value
-        topics_raw = self.get_parameter("topics").value
+        host = host if host is not None else self.get_parameter("host").value
+        port = port if port is not None else self.get_parameter("port").value
+        topics_raw = topics if topics is not None else self.get_parameter("topics").value
 
         self.get_logger().info(f"Connecting to {host}:{port}...")
         self._client = roslibpy.Ros(host=host, port=port)
@@ -97,7 +97,7 @@ class HelixBridge(Node):
             ros_type, topic_name = parts
             self._bridge_topic(topic_name, ros_type)
 
-        self.get_logger().info(f"Bridge ready — forwarding {len(self._ros_subs)} topics")
+        self.get_logger().info(f"Bridge ready - forwarding {len(self._ros_subs)} topics")
 
     def _bridge_topic(self, topic_name, ros_type):
         """Create a roslibpy subscriber + native publisher for one topic."""
@@ -124,7 +124,7 @@ class HelixBridge(Node):
         self.get_logger().info(f"  bridging {topic_name} ({ros_type})")
 
     def _resolve_type(self, ros_type):
-        """Resolve 'sensor_msgs/msg/JointState' → sensor_msgs.msg.JointState class."""
+        """Resolve 'sensor_msgs/msg/JointState' to sensor_msgs.msg.JointState class."""
         parts = ros_type.split("/")
         pkg = parts[0]
         msg_name = parts[-1]
@@ -141,16 +141,71 @@ class HelixBridge(Node):
         super().destroy_node()
 
 
+HELP_EPILOG = """
+TOPIC SPEC FORMAT
+-----------------
+Each topic is specified as ROS_TYPE:TOPIC_NAME, for example:
+  sensor_msgs/msg/JointState:/joint_states
+
+EXAMPLES
+--------
+  helix_bridge
+      Bridge the default topics (see DEFAULT TOPICS below).
+  helix_bridge --host 192.168.238.104 --port 9090
+      Bridge a specific robot.
+  helix_bridge --topics sensor_msgs/msg/JointState:/joint_states \\
+                        sensor_msgs/msg/JointState:/extra_joints
+      Bridge custom topics (repeat the option or pass several).
+
+DEFAULT TOPICS
+--------------
+  %s
+
+NOTES
+-----
+- The bridge runs until Ctrl+C. Use PlotJuggler (ROS 2 Topic Streamer)
+  to visualize the bridged topics.
+- Unsupported message types are published as JSON strings on a
+  std_msgs/String topic.
+- The same settings can be passed as ROS 2 parameters instead:
+  helix_bridge --ros-args -p topics:='["sensor_msgs/msg/JointState:/joint_states"]'
+""" % ", ".join(DEFAULT_TOPICS)
+
+
 def main(args=None):
     rclpy.init(args=args)
-    node = HelixBridge()
+
+    import argparse
+    parser = argparse.ArgumentParser(
+        prog="helix_bridge",
+        description="Bridge Helix robot topics from rosbridge to native "
+                    "ROS 2 topics, so tools like PlotJuggler can see them.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=HELP_EPILOG)
+    parser.add_argument("--host", default=None,
+                        help="Robot rosbridge host (default: from helix_config.yaml)")
+    parser.add_argument("--port", type=int, default=None,
+                        help="Robot rosbridge port (default: from helix_config.yaml)")
+    parser.add_argument("--topics", nargs="*", default=None,
+                        help="Topic specs ROS_TYPE:TOPIC_NAME to bridge "
+                             "(default: %s)" % ", ".join(DEFAULT_TOPICS))
+
+    argv = rclpy.utilities.remove_ros_args(args or sys.argv)
+    parsed = parser.parse_args(argv[1:])
+
+    try:
+        node = HelixBridge(host=parsed.host, port=parsed.port,
+                           topics=parsed.topics)
+    except ConfigError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
     finally:
         node.destroy()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == "__main__":
