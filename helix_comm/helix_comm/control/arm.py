@@ -18,7 +18,7 @@ class Arm:
             'orientation': {'x': qx, 'y': qy, 'z': qz, 'w': qw},
         }
         self.cart_pub.publish(msg)
-        self.logger.info(
+        self.logger.debug(
             f'  cartesian: ({x:.3f}, {y:.3f}, {z:.3f})  '
             f'quat: ({qx:.3f}, {qy:.3f}, {qz:.3f}, {qw:.3f})'
         )
@@ -29,7 +29,7 @@ class Arm:
             'values': joint_values,
         }
         self.config_pub.publish(msg)
-        self.logger.info(f'  configuration set')
+        self.logger.debug(f'  configuration set')
 
     def set_tendon_lengths(self, names, lengths):
         msg = {
@@ -37,7 +37,8 @@ class Arm:
             'values': lengths,
         }
         self.tendon_pub.publish(msg)
-        self.logger.info(f'  tendon lengths: {len(lengths)} tendons')
+        pairs = ', '.join(f'{n}: {l:.3f}' for n, l in zip(names, lengths))
+        self.logger.debug(f'  tendon lengths -> {pairs}')
 
     def cleanup(self):
         self.cart_pub.unadvertise()

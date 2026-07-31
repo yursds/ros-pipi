@@ -11,18 +11,18 @@ from helix_comm.control.arm import Arm
 from helix_comm.control.gripper import Gripper
 from helix_comm.control.calibrate import Calibrate
 from helix_comm.control.button import Button, BUTTON_COLORS
-from helix_comm.config_loader import load_config
+from helix_comm.config_loader import load_config, ConfigError
 
 
 class HelixControl(Node):
-    def __init__(self):
+    def __init__(self, host=None, port=None):
         super().__init__('helix_control')
         cfg = load_config()
         self.declare_parameter('host', cfg['host'])
         self.declare_parameter('port', cfg['port'])
 
-        host = self.get_parameter('host').value
-        port = self.get_parameter('port').value
+        host = host if host is not None else self.get_parameter('host').value
+        port = port if port is not None else self.get_parameter('port').value
 
         self.get_logger().info(f'Connecting to {host}:{port}...')
         self.client = roslibpy.Ros(host=host, port=port)
@@ -63,17 +63,19 @@ class HelixControl(Node):
         super().destroy_node()
 
 
-def _publish_loop(node, publish, description, rate, duration=None):
+def _publish_loop(node, publish, description, rate, duration=None, quiet=False):
     """Re-publish a command at a fixed rate.
 
     Streams until Ctrl+C, or for `duration` seconds when given.
     A ROS 2 timer drives the publishing rate (no sleep).
+    With `quiet=True` the start/stop messages are suppressed.
     """
     period = 1.0 / rate
-    node.get_logger().info(
-        f'Streaming {description} at {rate:.1f} Hz'
-        + (f' for {duration:.0f}s' if duration else '')
-        + ' (Ctrl+C to stop)...')
+    if not quiet:
+        node.get_logger().info(
+            f'Streaming {description} at {rate:.1f} Hz'
+            + (f' for {duration:.0f}s' if duration else '')
+            + ' (Ctrl+C to stop)...')
     timer = node.create_timer(period, publish)
     deadline = time.monotonic() + duration if duration is not None else None
     try:
@@ -85,39 +87,19 @@ def _publish_loop(node, publish, description, rate, duration=None):
         pass
     finally:
         timer.cancel()
-        node.get_logger().info(f'Streaming {description} stopped')
+        if not quiet:
+            node.get_logger().info(f'Streaming {description} stopped')
 
 
 HELP_EPILOG = """
 ACTIONS AND ARGUMENTS
 ---------------------
-  info                     Show connection info and available commands.
-  demo                     Run the demo sequence (gripper + poses).
-  open | close             Open / close the gripper.
-
-  pose  X Y Z [QX QY QZ QW]
-                           Move the end-effector to a cartesian pose.
-                           X Y Z in meters; QX..QW is an optional quaternion.
-                           Streamed until Ctrl+C.
-
-  config NAME:VALUE [...]
-                           Set joint configuration values.
-                           Streamed until Ctrl+C.
-
-  tendon NAME:VALUE [...]
-                           Set tendon lengths in meters.
-                           Names: tendon0 .. tendon8
-                           (tendon0-2 = module 1, tendon3-5 = module 2,
-                            tendon6-8 = module 3; straight robot = 0.125 /
-                            0.25).
-                           Streamed until Ctrl+C.
-
-  calibrate [status | current N | start | finish | limits]
-                           Tendon calibration management.
-
   button [COLOR | R G B]
                            Set the LED color. Colors: green, red, blue,
                            yellow, white, ... or explicit RGB values 0-255.
+
+  calibrate [status | current N | start | finish | limits]
+                           Tendon calibration management.
 
   circle [CX CY R Z PERIOD STEPS]
                            Trace a circle with the end-effector.
@@ -138,6 +120,33 @@ ACTIONS AND ARGUMENTS
                            MODULES: 1 or 2 (default 1)
                            Streamed until Ctrl+C.
 
+  config NAME:VALUE [...]
+                           Set joint configuration values.
+                           Streamed until Ctrl+C.
+
+  demo                     Run the demo sequence (gripper + poses).
+
+  home [HOLD]              Return to the default (straight) position.
+                           Streams all tendons to their nominal length
+                           for HOLD seconds (default 3).
+
+  info                     Show connection info and available commands.
+
+  open | close             Open / close the gripper.
+
+  pose  X Y Z [QX QY QZ QW]
+                           Move the end-effector to a cartesian pose.
+                           X Y Z in meters; QX..QW is an optional quaternion.
+                           Streamed until Ctrl+C.
+
+  tendon NAME:VALUE [...]
+                           Set tendon lengths in meters.
+                           Names: tendon0 .. tendon8
+                           (tendon0-2 = module 1, tendon3-5 = module 2,
+                            tendon6-8 = module 3; straight robot = 0.125 /
+                            0.25).
+                           Streamed until Ctrl+C.
+
   tendon_demo [AMPLITUDE HOLD]
                            Move one tendon at a time (tendon0 .. tendon8).
                            Always starts from the default position: all
@@ -150,15 +159,16 @@ ACTIONS AND ARGUMENTS
 
 EXAMPLES
 --------
-  helix_control info
-  helix_control demo
-  helix_control pose 0.10 0.0 0.55
-  helix_control tendon tendon0:0.125 tendon1:0.125 tendon2:0.125
-  helix_control circle 0.0 0.0 0.10 0.50 16 800
-  helix_control circle_tendon 0.015 16 800 1
-  helix_control tendon_demo
   helix_control button green
   helix_control calibrate status
+  helix_control circle 0.0 0.0 0.10 0.50 16 800
+  helix_control circle_tendon 0.015 16 800 1
+  helix_control demo
+  helix_control home
+  helix_control info
+  helix_control pose 0.10 0.0 0.55
+  helix_control tendon tendon0:0.125 tendon1:0.125 tendon2:0.125
+  helix_control tendon_demo
 
 STREAMING
 ---------
@@ -166,6 +176,10 @@ pose, config, tendon, circle and circle_tendon keep sending the command
 at --rate Hz until you press Ctrl+C. The robot controller reacts
 slowly, so a single command is often ignored: streaming is required
 to make the robot move. Lower --rate for slower, smoother motion.
+
+home and tendon_demo stream for a bounded duration instead: they
+publish their command for HOLD seconds (default 3) and stop
+automatically, so no Ctrl+C is needed.
 """
 
 
@@ -173,31 +187,35 @@ def main(args=None):
     rclpy.init(args=args)
 
     import argparse
-    cfg = load_config()
     parser = argparse.ArgumentParser(
         prog='helix_control',
-        description='Control the Helix robot via rosbridge.',
+        description='Control the Helix robot via rosbridge: poses, tendons, '
+                    'gripper, calibration, LED and trajectory demos.',
         usage='%(prog)s <action> [args...] [options]',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=HELP_EPILOG)
     parser.add_argument('action', nargs='?', default='info',
-                        choices=['info', 'demo', 'open', 'close',
-                                 'pose', 'config', 'tendon', 'calibrate', 'button',
-                                 'circle', 'circle_tendon', 'tendon_demo'],
+                        choices=['button', 'calibrate', 'circle', 'circle_tendon',
+                                 'close', 'config', 'demo', 'home', 'info', 'open',
+                                 'pose', 'tendon', 'tendon_demo'],
                         help='Action to perform (details and examples below)')
     parser.add_argument('args', nargs='*',
                         help='Action arguments (see examples below)')
-    parser.add_argument('--host', default=cfg['host'],
-                        help='Robot rosbridge host (default: %(default)s)')
-    parser.add_argument('--port', type=int, default=cfg['port'],
-                        help='Robot rosbridge port (default: %(default)s)')
+    parser.add_argument('--host', default=None,
+                        help='Robot rosbridge host (default: from helix_config.yaml)')
+    parser.add_argument('--port', type=int, default=None,
+                        help='Robot rosbridge port (default: from helix_config.yaml)')
     parser.add_argument('--rate', type=float, default=50.0,
                         help='Streaming publish rate in Hz (default: %(default)s)')
 
     argv = rclpy.utilities.remove_ros_args(args or sys.argv)
     parsed = parser.parse_args(argv[1:])
 
-    node = HelixControl()
+    try:
+        node = HelixControl(host=parsed.host, port=parsed.port)
+    except ConfigError as e:
+        print(f'ERROR: {e}', file=sys.stderr)
+        sys.exit(1)
 
     if parsed.action == 'info':
         node.get_logger().info(
@@ -212,6 +230,18 @@ def main(args=None):
 
     elif parsed.action == 'demo':
         node.demo_sequence()
+
+    elif parsed.action == 'home':
+        hold = float(parsed.args[0]) if parsed.args else 3.0
+        nominal = [0.125] * 3 + [0.25] * 6
+        tendon_names = [f'tendon{i}' for i in range(9)]
+        node.get_logger().info(
+            f'Home: streaming all tendons to nominal length for {hold:.0f}s '
+            '(straight position)...')
+        _publish_loop(
+            node,
+            lambda: node.arm.set_tendon_lengths(tendon_names, nominal),
+            'home (nominal tendon lengths)', parsed.rate, duration=hold)
 
     elif parsed.action == 'pose':
         vals = [float(v) for v in parsed.args]
@@ -352,7 +382,7 @@ def main(args=None):
             node,
             lambda: node.arm.set_tendon_lengths(tendon_names, nominal),
             'default position (nominal tendon lengths)', parsed.rate,
-            duration=hold)
+            duration=hold, quiet=True)
         if not rclpy.ok():
             node.get_logger().info('Tendon demo interrupted')
             return
@@ -363,7 +393,8 @@ def main(args=None):
                 node,
                 lambda n=name, v=base - amplitude:
                     node.arm.set_tendon_lengths([n], [v]),
-                f'{name} = {base - amplitude:.3f}', parsed.rate, duration=hold)
+                f'{name} = {base - amplitude:.3f}', parsed.rate, duration=hold,
+                quiet=True)
             if not rclpy.ok():
                 break
             node.get_logger().info(
@@ -372,7 +403,8 @@ def main(args=None):
                 node,
                 lambda n=name, v=base:
                     node.arm.set_tendon_lengths([n], [v]),
-                f'{name} = {base:.3f}', parsed.rate, duration=hold)
+                f'{name} = {base:.3f}', parsed.rate, duration=hold,
+                quiet=True)
             if not rclpy.ok():
                 break
         if rclpy.ok():
