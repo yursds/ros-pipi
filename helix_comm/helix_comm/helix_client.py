@@ -26,9 +26,6 @@ class HelixClient(Node):
         self.client.on_ready(
             lambda: self.get_logger().info("[OK] Connected to Helix robot")
         )
-        self.client.on_error(
-            lambda e: self.get_logger().error(f"Connection error: {e}")
-        )
         self.client.run()
 
         if self.client.is_connected:
