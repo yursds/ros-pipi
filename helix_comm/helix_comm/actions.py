@@ -1,29 +1,49 @@
 """Action handlers for the helix_control CLI, one function per action."""
 
 import math
-import time
+from concurrent.futures import Future
 
 import rclpy
+from rclpy.duration import Duration
 
 from helix_comm.control.button import BUTTON_COLORS
 
 
 def _publish_loop(node, publish, description, rate, duration=None, quiet=False):
+    """Publish ``publish`` at ``rate`` Hz until Ctrl+C or ``duration`` elapses.
+
+    The rate is enforced by a ROS 2 timer; the deadline, when given, is
+    measured on the ROS clock so it stays consistent with the time used by
+    the trajectory actions. Bounded streams stop automatically at the
+    deadline (no Ctrl+C needed), unbounded ones stop on Ctrl+C.
+    """
     period = 1.0 / rate
     if not quiet:
         suffix = f" for {duration:.0f}s" if duration else ""
         node.get_logger().info(
             f"Streaming {description} at {rate:.1f} Hz{suffix} (Ctrl+C to stop)..."
         )
-    timer = node.create_timer(period, publish)
-    deadline = time.monotonic() + duration if duration is not None else None
+
+    deadline = (
+        node.get_clock().now() + Duration(seconds=duration)
+        if duration is not None
+        else None
+    )
+    finished = Future()
+
+    def _tick():
+        publish()
+        if deadline is not None and node.get_clock().now() >= deadline:
+            timer.cancel()
+            if not finished.done():
+                finished.set_result(True)
+
+    timer = node.create_timer(period, _tick)
     try:
-        while rclpy.ok():
-            rclpy.spin_once(node, timeout_sec=0.1)
-            if deadline is not None and time.monotonic() >= deadline:
-                break
-    except KeyboardInterrupt:
-        pass
+        if duration is not None:
+            rclpy.spin_until_future_complete(node, finished)
+        else:
+            rclpy.spin(node)
     finally:
         timer.cancel()
         if not quiet:
