@@ -6,7 +6,7 @@ import rclpy
 import roslibpy
 from rclpy.node import Node
 
-from helix_comm.config_loader import ConfigError, load_config
+from helix_comm.utils.config_loader import ConfigError, load_config
 
 
 class HelixClient(Node):

@@ -8,12 +8,12 @@ import roslibpy
 from rclpy.node import Node
 
 from helix_comm.actions import ACTIONS
-from helix_comm.config_loader import ConfigError, load_config
+from helix_comm.utils.config_loader import ConfigError, load_config
 from helix_comm.control.arm import Arm
 from helix_comm.control.button import Button
 from helix_comm.control.calibrate import Calibrate
 from helix_comm.control.gripper import Gripper
-from helix_comm.help_text import HELP_EPILOG
+from helix_comm.utils.help_text import HELP_EPILOG
 
 
 class HelixControl(Node):
