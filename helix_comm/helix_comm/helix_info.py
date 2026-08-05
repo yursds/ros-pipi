@@ -13,38 +13,38 @@ class HelixInfo(Node):
     """Check Helix robot status and available interfaces."""
 
     def __init__(self, host=None, port=None):
-        super().__init__('helix_info')
+        super().__init__("helix_info")
         cfg = load_config()
-        self.declare_parameter('host', cfg['host'])
-        self.declare_parameter('port', cfg['port'])
+        self.declare_parameter("host", cfg["host"])
+        self.declare_parameter("port", cfg["port"])
 
-        host = host if host is not None else self.get_parameter('host').value
-        port = port if port is not None else self.get_parameter('port').value
+        host = host if host is not None else self.get_parameter("host").value
+        port = port if port is not None else self.get_parameter("port").value
 
         self.client = roslibpy.Ros(host=host, port=port)
         self.client.run()
 
         if not self.client.is_connected:
-            self.get_logger().error(f'[FAILED] Cannot connect to {host}:{port}')
+            self.get_logger().error(f"[FAILED] Cannot connect to {host}:{port}")
             sys.exit(1)
 
-        self.get_logger().info(f'[OK] Connected to Helix robot at {host}:{port}')
+        self.get_logger().info(f"[OK] Connected to Helix robot at {host}:{port}")
 
     def print_info(self):
         """Print robot information."""
-        self.get_logger().info('\n========== HELIX ROBOT INFO ==========')
+        self.get_logger().info("\n========== HELIX ROBOT INFO ==========")
 
         # Topics
-        self.get_logger().info('\n-- Topics:')
+        self.get_logger().info("\n-- Topics:")
         for t in self.client.get_topics():
-            self.get_logger().info(f'  {t}')
+            self.get_logger().info(f"  {t}")
 
         # Services
-        self.get_logger().info('\n-- Services:')
+        self.get_logger().info("\n-- Services:")
         for s in self.client.get_services():
-            self.get_logger().info(f'  {s}')
+            self.get_logger().info(f"  {s}")
 
-        self.get_logger().info('\n======================================')
+        self.get_logger().info("\n======================================")
 
     def destroy(self):
         self.client.terminate()
@@ -72,16 +72,25 @@ def main(args=None):
     rclpy.init(args=args)
 
     import argparse
+
     parser = argparse.ArgumentParser(
-        prog='helix_info',
-        description='Check Helix robot status: prints connection info plus '
-                    'all available topics and services.',
+        prog="helix_info",
+        description="Check Helix robot status: prints connection info plus "
+        "all available topics and services.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=HELP_EPILOG)
-    parser.add_argument('--host', default=None,
-                        help='Robot rosbridge host (default: from helix_config.yaml)')
-    parser.add_argument('--port', type=int, default=None,
-                        help='Robot rosbridge port (default: from helix_config.yaml)')
+        epilog=HELP_EPILOG,
+    )
+    parser.add_argument(
+        "--host",
+        default=None,
+        help="Robot rosbridge host (default: from helix_config.yaml)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Robot rosbridge port (default: from helix_config.yaml)",
+    )
 
     argv = rclpy.utilities.remove_ros_args(args or sys.argv)
     parsed = parser.parse_args(argv[1:])
@@ -89,7 +98,7 @@ def main(args=None):
     try:
         node = HelixInfo(host=parsed.host, port=parsed.port)
     except ConfigError as e:
-        print(f'ERROR: {e}', file=sys.stderr)
+        print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
 
     node.print_info()
@@ -97,5 +106,5 @@ def main(args=None):
     rclpy.try_shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

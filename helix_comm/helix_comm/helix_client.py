@@ -13,24 +13,28 @@ class HelixClient(Node):
     """ROS 2 node that communicates with a Helix robot via rosbridge."""
 
     def __init__(self, host=None, port=None):
-        super().__init__('helix_client')
+        super().__init__("helix_client")
         cfg = load_config()
-        self.declare_parameter('host', cfg['host'])
-        self.declare_parameter('port', cfg['port'])
+        self.declare_parameter("host", cfg["host"])
+        self.declare_parameter("port", cfg["port"])
 
-        host = host if host is not None else self.get_parameter('host').value
-        port = port if port is not None else self.get_parameter('port').value
+        host = host if host is not None else self.get_parameter("host").value
+        port = port if port is not None else self.get_parameter("port").value
 
-        self.get_logger().info(f'Connecting to Helix robot at {host}:{port}...')
+        self.get_logger().info(f"Connecting to Helix robot at {host}:{port}...")
         self.client = roslibpy.Ros(host=host, port=port)
-        self.client.on_ready(lambda: self.get_logger().info('[OK] Connected to Helix robot'))
-        self.client.on_error(lambda e: self.get_logger().error(f'Connection error: {e}'))
+        self.client.on_ready(
+            lambda: self.get_logger().info("[OK] Connected to Helix robot")
+        )
+        self.client.on_error(
+            lambda e: self.get_logger().error(f"Connection error: {e}")
+        )
         self.client.run()
 
         if self.client.is_connected:
-            self.get_logger().info('[OK] Rosbridge connection established')
+            self.get_logger().info("[OK] Rosbridge connection established")
         else:
-            self.get_logger().error('[FAILED] Connection to robot failed')
+            self.get_logger().error("[FAILED] Connection to robot failed")
             sys.exit(1)
 
     def get_topics(self):
@@ -74,16 +78,25 @@ def main(args=None):
     rclpy.init(args=args)
 
     import argparse
+
     parser = argparse.ArgumentParser(
-        prog='helix_client',
-        description='Low-level rosbridge client for the Helix robot: connects '
-                    'and lists all available topics and services.',
+        prog="helix_client",
+        description="Low-level rosbridge client for the Helix robot: connects "
+        "and lists all available topics and services.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=HELP_EPILOG)
-    parser.add_argument('--host', default=None,
-                        help='Robot rosbridge host (default: from helix_config.yaml)')
-    parser.add_argument('--port', type=int, default=None,
-                        help='Robot rosbridge port (default: from helix_config.yaml)')
+        epilog=HELP_EPILOG,
+    )
+    parser.add_argument(
+        "--host",
+        default=None,
+        help="Robot rosbridge host (default: from helix_config.yaml)",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=None,
+        help="Robot rosbridge port (default: from helix_config.yaml)",
+    )
 
     argv = rclpy.utilities.remove_ros_args(args or sys.argv)
     parsed = parser.parse_args(argv[1:])
@@ -91,17 +104,17 @@ def main(args=None):
     try:
         node = HelixClient(host=parsed.host, port=parsed.port)
     except ConfigError as e:
-        print(f'ERROR: {e}', file=sys.stderr)
+        print(f"ERROR: {e}", file=sys.stderr)
         sys.exit(1)
 
     try:
-        node.get_logger().info('\n--- Available Topics ---')
+        node.get_logger().info("\n--- Available Topics ---")
         for topic in node.get_topics():
-            node.get_logger().info(f'  {topic}')
+            node.get_logger().info(f"  {topic}")
 
-        node.get_logger().info('\n--- Available Services ---')
+        node.get_logger().info("\n--- Available Services ---")
         for svc in node.get_services():
-            node.get_logger().info(f'  {svc}')
+            node.get_logger().info(f"  {svc}")
 
         rclpy.spin(node)
     except KeyboardInterrupt:
@@ -111,5 +124,5 @@ def main(args=None):
         rclpy.shutdown()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
